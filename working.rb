@@ -109,7 +109,7 @@ end
 # @return Boolean: whether this successfully reblogged or not
 def reblog_post(post)
   @client.reblog(@client.targetBlogURL,
-    id: post["id"].to_i,
+    id: post["id"],
     reblog_key: post['reblog_key'],
     #state: options[:status],
     state: 'published',
@@ -120,14 +120,24 @@ end
 
 ##############################################################################
 #script
-sourcePosts = []
+
 @client = init_client;
+sourcePosts = @client.posts(@client.sourceBlogURL, {:limit => 1})
+#pull initial timestamp from latest post on blog. This is basically a hack, I'll figure out how to get a useful timestamp in a better way later
+timeStamp = sourcePosts["posts"][0]["timestamp"]
 
 #tumblr only allows 50 posts to be pulled at a time.
-
-sourcePosts = @client.posts(@client.sourceBlogURL, {:limit => 2, :notes_info => true, :tag => '12345678', :reblog_info => true})
-reblog_post(sourcePosts["posts"][0])
-#puts sourcePosts["posts"][0]
-#puts test.targetBlogURL
-#test.text(test.targetBlogURL, {:title => "test", :body => "placeholder", })
-#puts "test possibly passed"
+breakcounter = 0
+loop do
+  sourcePosts = @client.posts(@client.sourceBlogURL, {:limit => 20, :before => timeStamp, :tag => 'placeholder'})["posts"]
+  counter = 0
+  #break if (sourcePosts.size == 0)
+  puts breakcounter
+  while (counter < sourcePosts.size)
+    reblog_post(sourcePosts[counter])
+    counter += 1
+  end
+  timeStamp = sourcePosts.last["timestamp"]
+  breakcounter += 1
+  break if breakcounter >= 10 || sourcePosts.size()
+end
