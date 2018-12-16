@@ -8,7 +8,7 @@ require 'tumblr_client' #ruby gem for interacting with the tumblr API
 #   add specific tag to all moved posts, then on move stage check for this tag on each post
 # move to command line options
 # Some type of verification for source/target might be good? this thing does kind of a lot.
-
+# something to remove the tag ^^ once we're done moving everything.
 ################################################################################
 
 #overcommenting is because Ruby isn't my favoured language, so taking notes helps.
@@ -44,6 +44,37 @@ def check_tag()
 end
 
 def parse_options
+  options = {}
+
+  OptionParser.new do |opt|
+    opts.banner = "Usage: post_filter.rb"
+
+    opt.on('-t', '--tag TAG', 'The tag to search for on source blog') do |t|
+      options[:tag] = t
+    end
+
+    opt.on('-r', '--target TARGET', 'The URL of the blog to reblog to') do |r|
+      options[:target] = r
+    end
+
+    #can reblog posts to drafts, to queue, published (actually posted), or privately posted
+    opt.on('-s', '--status STATUS', 'The status of the reblogged posts. (draft, queue, published, private)') do |s|
+      options[:status] = s
+    end
+
+    opt.on('-h', '--help', 'Show this help message') do ||
+      puts opts
+      exit
+    end
+  end.parse!
+
+  unless valid_options?(options)
+    puts "Invalid usage! >=1 tags, blog URL, and target URL are required."
+    exit
+  end
+
+  #return normalize_options(options)
+  return options
 end
 
 # validate the script options
@@ -65,18 +96,38 @@ end
 # @param String tag: the tag to look for
 # @return Array sourcePosts: the array of posts to reblog from Source
 def find_tagged(sourcePosts, tag)
+
 end
 
 # Reblogs a post to target blog
 #
+# TODO: add option to not duplicate tags?
+# currently, target's reblog has same tags as the original's.
+#
 # @param Tumblr::post post: the post to be reblogged
 # @param Hash options: the post options
 # @return Boolean: whether this successfully reblogged or not
-def reblog_post(post, options)
+def reblog_post(post)
+  @client.reblog(@client.targetBlogURL,
+    id: post["id"].to_i,
+    reblog_key: post['reblog_key'],
+    #state: options[:status],
+    state: 'published',
+    tags: post["tags"]
+  )
 end
 
-test = init_client;
 
+##############################################################################
+#script
+sourcePosts = []
+@client = init_client;
+
+#tumblr only allows 50 posts to be pulled at a time.
+
+sourcePosts = @client.posts(@client.sourceBlogURL, {:limit => 2, :notes_info => true, :tag => '12345678', :reblog_info => true})
+reblog_post(sourcePosts["posts"][0])
+#puts sourcePosts["posts"][0]
 #puts test.targetBlogURL
 #test.text(test.targetBlogURL, {:title => "test", :body => "placeholder", })
 #puts "test possibly passed"
